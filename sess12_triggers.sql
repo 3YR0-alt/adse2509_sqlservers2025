@@ -134,3 +134,104 @@ values
 
 --Confirm the above insertion
 select*from StudentDetails;
+
+
+-- Create a table to store deleted student details
+Create table deleted_students
+(
+
+    ID int primary key,
+    deleted_name VARCHAR(50),
+    deleted_age INT,
+    deleted_email VARCHAR(100)
+    deleted_date DATETIME default GETDATE()
+
+);
+
+--Create trigger for delete operations on hte 'StudentDetails' table
+Create trigger trg_delete_StudentDetails
+on dbo.StudentDetails
+for delete as 
+Begin
+   Set nocount on;
+
+   Insert into 
+   deleted_students(id,deleted_name,deleted_age,deleted_email)
+   Select id, name, age, email
+   from deleted;
+
+   --Variable to be used in the delete trigger
+   declare @deletedID = (select id from deleted)
+   declare @deletedName nvarchar(50) = (select name from deleted)
+
+   --Display the ID and name of the student whose details where deleted
+   print 'The details of student id' + convert(nvarchar(30), @deletedid) + ' ' + @deletedName + ', have
+   been deleted from the studentdetails table!'
+
+   Set nocount off;
+End;
+
+--Delete Charlie's details from the studentdetails table
+Delete from StudentDetails
+where id = 3;
+
+-- Create an after trigger for the employee details table
+Create trigger trgCheckEmpDelete on EmployeeDetails
+after delete as
+Begin
+declare @num int; -- Local variable to hold the number of deleted records
+select @num = Count(*) from deleted
+print 'The number of employee(s) fired is ' + convert(nchar, @num)
+End;
+
+--relieve some employees of their duties
+delete from dbo.EmployeeDetails
+where EmpID >= 6 and EmpID < 10;
+
+--View the definition of the 'trgCheckEmpDelete' trigger
+exec sp_helptext 'trgCheckEmpDelete';
+
+-- Demonstrate creating an encrypted trigger and deleting it
+Create trigger trg2Delete on EmployeeDetails
+with encryption
+after delete as
+Begin
+   declare @num int; -- Local variable to hold the number of deleted records
+   select @num = Count(*) from deleted
+   print 'The number of employee(s) fired is ' + convert(nchar, @num)
+End;
+
+--View the definition of the trg2Delete trigger
+exec sp_helptext 'trg2Delete';
+
+--Drop the 'trg2Delete' trigger
+Drop trigger trg2Delete;
+
+--Create a DDL trigger that will prevent the deletion or modification of database tables
+Create trigger trgSecure
+on Database --Created on our Customer database
+with encryption
+for drop_table, alter_table as
+Begin
+  Print 'Sorry, you cannot delete or modify this table until you disable/delete the trg Secure trigger!';
+  rollback;
+End;
+
+-- Create a dummy table to try to delete it
+Create table tblDummy
+(
+
+    DummyID int primary key,
+    Dummyname VARCHAR(50),
+    Dummyage INT,
+    Dummyemail VARCHAR(100)
+);
+
+--Try to remove/drop the 'tblDummy' table from the customer database
+drop table tblDummy;
+
+--Disable the Database DDL 'trgSecure' trigger to allow us to delete 'tblDummy' table
+disable trigger trgSecure on database;
+
+--Enable the Database DDL 'trgSecure' trigger to allow us to delete 'tblDummy' table
+Enable trigger trgSecure on database;
